@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>IoT Door</title>
+		<!-- css rf: https://github.com/mobi-css/mobi.css -->
+		<!-- <link rel="stylesheet" href="mobi.min.css" /> -->
+		<!-- <link rel="stylesheet" href="http://192.168.31.194/style?file=mobi.min.css" /> -->
+	</head>
+	<div class="cover" style="display: none;">
+		<div class="loading-icon"></div>
+	</div>
+
+	<body onhashchange="onPageChange()">
+		<div class="flex-center">
+			<div class="container">
+				<div class="menu">
+					<a onclick="window.location.reload()" href="#status">IoT Door</a>
+					<div class="menu-right">
+						<a href="#status" class="">Status</a>
+						<a href="#config" class="">Config</a>
+						<a href="#wlan" class="">WLAN</a>
+						<a href="#file" class="">File</a>
+						<a href="#system" class="">System</a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<page id="status" style="display: none;">
+			<div class="flex-center">
+				<div class="container">
+					<p class="text-center text-bold text-big text-primary">Status</p>
+					<table class="table">
+					</table>
+				</div>
+			</div>
+		</page>
+
+		<page id="config" style="display: none;">
+			<div class="flex-center">
+				<div class="container">
+					<p class="text-center text-bold text-big text-primary">Configuration</p>
+					<table class="table">
+						<thead>
+							<tr>
+								<th>Item</th>
+								<th>Value</th>
+								<th>Other</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td>Config-File:</td>
+								<td><input id="cc-config" type="input" disabled /></td>
+								<td>*immutable*</td>
+							</tr>
+							<tr>
+								<th>WiFi</th>
+								<th colspan="2"><a class="btn btn-green" onclick="window.location.href='#wlan'">Scan</a>
+								</th>
+							</tr>
+							<tr>
+								<td>AP-SSID:</td>
+								<td><input id="cc-ssid" type="input" /></td>
+								<td>&lt;20char</td>
+							</tr>
+							<tr>
+								<td>AP-PASS:</td>
+								<td><input id="cc-pass" type="input" /></td>
+								<td>&lt;20char</td>
+							</tr>
+							<tr>
+								<td>AP-Timeout:</td>
+								<td><input id="cc-timeout" type="input" /></td>
+								<td>sec</td>
+							</tr>
+							<tr>
+								<td>AP-MaxTry:</td>
+								<td><input id="cc-maxtry" type="input" /></td>
+								<td>times</td>
+							</tr>
+							<tr>
+								<td>AP-Code:</td>
+								<td><input id="cc-code" type="input" disabled /></td>
+								<td>*last result*</td>
+							</tr>
+							<tr>
+								<th>Servo</th>
+								<th colspan="2"><a class="btn btn-green"
+										onclick="window.location.href='#system'">Test</a></th>
+							</tr>
+							<tr>
+								<td>Servo-P1:</td>
+								<td><input id="cc-servo1" type="input" /></td>
+								<td>%</td>
+							</tr>
+							<tr>
+								<td>Servo-P2:</td>
+								<td><input id="cc-servo2" type="input" /></td>
+								<td>%</td>
+							</tr>
+							<tr>
+								<td>Servo-Delay:</td>
+								<td><input id="cc-delay" type="input" /></td>
+								<td>sec</td>
+							</tr>
+						</tbody>
+					</table>
+
+
+					<div class="flex flex-center margin-top">
+						<a class="btn btn-primary" onclick="getConfiguration()">Reget</a>
+						<a class="btn btn-green" onclick="setConfiguration()">Save&Restart</a>
+					</div>
+				</div>
+			</div>
+		</page>
+
+		<page id="wlan" style="display: none;">
+			<div class="flex-center">
+				<div class="container">
+
+					<p class="text-center text-bold text-big text-primary">AP Scanner</p>
+					<div class="scroll-view">
+						<table class="table">
+							<thead>
+								<tr>
+									<th>ID</th>
+									<th>SSID</th>
+									<th>CN</th>
+									<th>RSSI</th>
+									<th>Security</th>
+									<th>Operation</th>
+								</tr>
+							</thead>
+							<tbody id="wl-tb">
+								<td>--</td>
+								<td>Please Scan First</td>
+								<td>--</td>
+								<td>--</td>
+								<td>--</td>
+								<td>--</td>
+								<!-- <td>1</td>
+								<td>ChinaNet-YY</td>
+								<td>1</td>
+								<td>-69dBm</td>
+								<td>Encrypt</td>
+								<td><a href="#" class="btn btn-primary">select</a></td> -->
+							</tbody>
+
+						</table>
+
+					</div>
+
+					<div class="flex flex-center margin-top">
+						<a class="btn btn-primary" onclick="getAPList()">Rescan</a>
+					</div>
+
+				</div>
+			</div>
+		</page>
+
+
+		<page id="file" style="display: none;">
+			<div class="flex-center">
+				<div class="container">
+
+					<p class="text-center text-bold text-big text-primary">File Explorer</p>
+					<div class="scroll-view">
+						<table class="table">
+							<thead>
+								<tr>
+									<th>Filename</th>
+									<th>Operation</th>
+								</tr>
+							</thead>
+							<tbody id="fs-tb">
+								<!-- <tr>
+									<td>00.db</td>
+									<td>
+										<a href="#" class="btn btn-primary">download</a>
+										<a href="#" class="btn btn-danger">delete</a>
+									</td>
+								</tr> -->
+							</tbody>
+
+						</table>
+						<p class="text-center text-bold text-big text-primary">File Uploader</p>
+						<table class="table">
+							<thead>
+								<tr>
+									<th>Filename</th>
+									<th>Operation</th>
+								</tr>
+							</thead>
+							<tfoot>
+								<tr>
+									<td>
+										<div id="file-upname" class="text-bold text-muted">Not selected</div>
+									</td>
+									<td>
+										<input id="file-upload" onchange="onFileBtnClick(1)" style="display: none;"
+											type="file" />
+										<a onclick="onFileBtnClick(0)" class="btn btn-primary">select</a>
+										<a onclick="onFileBtnClick(2)" class="btn btn-green">upload</a>
+									</td>
+								</tr>
+							</tfoot>
+						</table>
+					</div>
+					<!-- Content -->
+					<p class="text-center text-bold text-big text-primary">Usage Info</p>
+					<div class="scroll-view">
+						<table class="table">
+							<thead>
+								<tr>
+									<th>Total(B)</th>
+									<th>Used(B)</th>
+									<th>Left(B)</th>
+								</tr>
+							</thead>
+							<tbody id="fs-info">
+								<tr>
+									<td><label id="i-to">-1</label></td>
+									<td><label id="i-usd">-1</label></td>
+									<td><label id="i-lft">-1</label></td>
+								</tr>
+								<tr>
+									<td>Usage</td>
+									<td id="i-p">-1%</td>
+									<td><progress id="i-fp" max="-1" value="-1" /></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</page>
+
+		<page id="system" style="display: none;">
+
+			<div class="flex-center">
+				<div class="container">
+					<p class="text-center text-bold text-big text-primary">IO Controller</p>
+					<table class="table">
+						<thead>
+							<tr>
+								<th>IOx</th>
+								<th>Operation</th>
+							</tr>
+						</thead>
+						<tr>
+							<td>IO0</td>
+							<td class="flex">
+								<input id="servoRange" style="flex:1" type="range" min="0" max="100" step="1"
+									onchange="onServoSlider(1)" oninput="onServoSlider(0)" />
+								<div id="servoValue">50%</div>
+							</td>
+						</tr>
+						<tr>
+							<td>IO2</td>
+							<td>
+								<a class="btn btn-primary" onclick="HGET('/io_set?io=2&value=1')">ON</a>
+								<a class="btn btn-primary" onclick="HGET('/io_set?io=2&value=0')">OFF</a>
+								<a class="btn btn-green"
+									onclick="HGET('/io_read?io=2&type=1',rr=>alert('read:'+rr.data))">READ</a>
+							</td>
+						</tr>
+					</table>
+					<p class="text-center text-bold text-big text-primary">System Controller</p>
+					<table class="table">
+						<thead>
+							<th>Category</th>
+							<th>Operation</th>
+						</thead>
+						<tr>
+							<td>Custom</td>
+							<td><a class="btn btn-primary" onclick="HGET('/cus_opendoor')">Open Door</a></td>
+						</tr>
+						<tr>
+							<td>*Chip*</td>
+							<td><a class="btn btn-green" onclick="HGET('/restart',rr=>alert(rr.msg))">Restart</a></td>
+						</tr>
+						<tr>
+							<td>*Chip*</td>
+							<td><a class="btn btn-danger" onclick="HGET('/reset',rr=>alert(rr.msg))">Reset</a></td>
+						</tr>
+
+					</table>
+				</div>
+			</div>
+		</page>
+
+	</body>
+	<script>
+		var HTTP_SERVER = "http://192.168.31.194/api"
+		if (window.location.href.search('127.0.0.1') == -1) { //在单片机上
+			HTTP_SERVER = window.location.origin + "/api"
+			loadCSSfile()
+		} else { //不在单片机上
+
+			const newLink = document.createElement('link');
+			newLink.href = "mobi.min.css"
+			newLink.type = 'text/css'
+			newLink.rel = 'stylesheet'
+			document.getElementsByTagName('head')[0].appendChild(newLink)
+		}
+
+		window.onload = () => {
+			getConfiguration()
+			window.location.href = "#status"
+		}
+
+		function loadCSSfile() {
+			const newLink = document.createElement('link');
+			newLink.href = HTTP_SERVER.substr(0, HTTP_SERVER.search('api')) + "style?file=mobi.min.css"
+			newLink.type = 'text/css'
+			newLink.rel = 'stylesheet'
+			document.getElementsByTagName('head')[0].appendChild(newLink)
+		}
+
+		// 翻页逻辑
+		function onPageChange() {
+			var href = window.location.href
+			var curPage = href.substring(href.indexOf("#") + 1)
+			var pageList = document.getElementsByTagName('page')
+			for (let item of pageList) {
+				item.id != curPage ? item.style.setProperty('display', 'none') : item.style.removeProperty('display')
+			}
+			switch (curPage) {
+				case "status":
+					break;
+				case "config":
+					break;
+				case "wlan":
+					getAPList()
+					break;
+				case "file":
+					getFileList()
+					getFileInfo()
+					break;
+				case "system":
+					break;
+				default:
+					break;
+			}
+		}
+
+		function onServoSlider(type) {
+			var sValue = document.getElementById('servoRange').value
+			if (type == 0) {
+				document.getElementById('servoValue').innerText = sValue + '%'
+			} else {
+				HGET('/io_pwm?io=0&value=' + sValue)
+			}
+		}
+
+		function getAPList() {
+			var wltb = document.getElementById("wl-tb")
+			wltb.innerHTML = ""
+
+			HGET('/wl_scan', res => {
+				if (res.data) {
+					for (var i = 0; i < res.data.length; i++) {
+						var row = wltb.insertRow()
+						row.insertCell().appendChild(document.createTextNode(i + 1))
+						row.insertCell().appendChild(document.createTextNode(res.data[i].SSID))
+						row.insertCell().appendChild(document.createTextNode(res.data[i].CN))
+						row.insertCell().appendChild(document.createTextNode(res.data[i].RSSI + "dBm"))
+						row.insertCell().appendChild(document.createTextNode(res.data[i].Sec))
+						var cellop = row.insertCell()
+						cellop.setAttribute('colspan', 2)
+
+						var btn = document.createElement("a")
+						btn.innerText = "select"
+
+						btn.setAttribute('onclick',
+							"document.getElementById('cc-ssid').value='" + res.data[i].SSID +
+							"';window.location.href='#config'")
+						btn.classList.add('btn', 'btn-primary')
+
+						cellop.appendChild(btn)
+					}
+					return
+				} else {
+					var row = wltb.insertRow()
+					row.insertCell().appendChild(document.createTextNode('-1'))
+					row.insertCell().appendChild(document.createTextNode('No AP nearby'))
+					for (var i = 0; i < 4; i++)
+						row.insertCell().appendChild(document.createTextNode('---'))
+					return
+				}
+
+			})
+		}
+
+		function setConfiguration() {
+			var config_file = document.getElementById("cc-config").value
+			var wifi_ssid = document.getElementById("cc-ssid").value
+			var wifi_pass = document.getElementById("cc-pass").value
+			var wifi_timeout = parseInt(document.getElementById("cc-timeout").value, 10)
+			var wifi_maxtry = parseInt(document.getElementById("cc-maxtry").value, 10)
+			var wifi_code = 9
+			var servo_position = [
+				parseInt(document.getElementById("cc-servo1").value, 10),
+				parseInt(document.getElementById("cc-servo2").value, 10)
+			]
+			var servo_delay = parseInt(document.getElementById("cc-delay").value, 10)
+
+			var curConfig = {
+				config_file: config_file,
+				wifi_ssid: wifi_ssid,
+				wifi_pass: wifi_pass,
+				wifi_timeout: wifi_timeout,
+				wifi_maxtry: wifi_maxtry,
+				wifi_code: wifi_code,
+				servo_position: servo_position,
+				servo_delay: servo_delay
+			}
+
+			HGET('/db_push?data=' + JSON.stringify(curConfig), res => {
+				alert(res.msg)
+			})
+		}
+
+		function getConfiguration() {
+			HGET('/db_pull', res => {
+				// console.log(res)
+				document.getElementById("cc-config").value = res.data.config_file
+				document.getElementById("cc-ssid").value = res.data.wifi_ssid
+				document.getElementById("cc-pass").value = res.data.wifi_pass
+				document.getElementById("cc-timeout").value = res.data.wifi_timeout
+				document.getElementById("cc-maxtry").value = res.data.wifi_maxtry
+				var cccode = document.getElementById("cc-code")
+				if (res.data.wifi_code == 0) cccode.value = 'WL_IDLE_STATUS';
+				if (res.data.wifi_code == 1) cccode.value = 'WL_NO_SSID_AVAIL';
+				if (res.data.wifi_code == 2) cccode.value = 'WL_SCAN_COMPLETED';
+				if (res.data.wifi_code == 3) cccode.value = 'WL_CONNECTED';
+				if (res.data.wifi_code == 4) cccode.value = 'WL_CONNECT_FAILED';
+				if (res.data.wifi_code == 5) cccode.value = 'WL_CONNECTION_LOST';
+				if (res.data.wifi_code == 6) cccode.value = 'WL_WRONG_PASSWORD';
+				if (res.data.wifi_code == 7) cccode.value = 'WL_DISCONNECTED';
+
+				document.getElementById("cc-servo1").value = res.data.servo_position[0]
+				document.getElementById("cc-servo2").value = res.data.servo_position[1]
+				document.getElementById("cc-delay").value = res.data.servo_delay
+			})
+		}
+
+		function getFileInfo() {
+			HGET('/fs_info', res => {
+				document.getElementById("i-to").innerText = parseInt(res.data.total / 8)
+				document.getElementById("i-usd").innerText = parseInt(res.data.used / 8)
+				document.getElementById("i-lft").innerText = parseInt((res.data.total - res.data.used) / 8)
+				document.getElementById("i-p").innerText = parseInt(res.data.used / res.data.total * 100) + '%'
+				document.getElementById("i-fp").setAttribute('max', parseInt(res.data.total))
+				document.getElementById("i-fp").setAttribute('value', parseInt(res.data.used))
+			})
+		}
+
+		function getFileList() {
+			var fstb = document.getElementById("fs-tb")
+			fstb.innerHTML = ""
+
+			HGET('/fs_dir', res => {
+				if (res.data) {
+
+					for (var i = 0; i < res.data.length; i++) {
+						var row = fstb.insertRow()
+						row.insertCell().appendChild(document.createTextNode(res.data[i]))
+						var cell_op = row.insertCell()
+
+
+						var op1 = document.createElement("a")
+						op1.innerText = "download"
+						op1.setAttribute('onclick', "window.open('" + HTTP_SERVER + "/fs_download?file=" + res.data[
+							i] + "')")
+
+						var op2 = document.createElement("a")
+						op2.innerText = "delete"
+						op2.setAttribute('onclick', "deleteFile('" + res.data[i] + "')")
+
+						op1.classList.add('btn', 'btn-primary')
+						// op1.classList.add()
+
+						op2.classList.add('btn', 'btn-danger')
+						// op2.classList.add()
+
+						cell_op.append(op1, op2)
+					}
+					return
+				} else {
+					var row = fstb.insertRow()
+					row.insertCell().appendChild(document.createTextNode('Nothing in system'))
+					row.insertCell().appendChild(document.createTextNode('---'))
+					return
+				}
+
+			})
+		}
+
+		function onFileBtnClick(op) {
+			var that = this
+			const ff = document.querySelector('#file-upload')
+			const fn = document.querySelector('#file-upname')
+			if (op == 0) { //选择文件
+				ff.click()
+				return;
+			}
+			if (op == 1) { //文件改变
+				if (ff.files.length > 0) fn.innerText = ff.files[0].name
+				else fn.innerText = "Not selected"
+				return;
+			}
+			if (op == 2) { //上传文件
+				if (ff.files.length == 0) {
+					alert("Please select file first")
+					return;
+				}
+				HUP('/fs_upload', ff.files[0], res => {
+					if (res.msg) {
+						// alert(res.msg)
+						//todo: tips
+						setTimeout(() => {
+							that.getFileList()
+						}, 500)
+					}
+				})
+				return;
+			}
+		}
+
+		function deleteFile(filename) {
+			var that = this
+			//todo:先检测文件是否存在
+			HGET('/fs_rm?file=' + filename, res => {
+				//todo: tips删除成功
+				setTimeout(() => {
+					that.getFileList()
+				}, 200)
+			})
+		}
+
+		function showLoading(isshow) {
+			var cc = document.getElementsByClassName('cover')[0]
+			isshow ? cc.style.removeProperty('display') : cc.style.setProperty('display', 'none')
+		}
+
+		function HGET(url, cb, msg = false, reload = false) {
+			var that = this
+			that.showLoading(true)
+			fetch(HTTP_SERVER + url)
+				.then(response => response.json())
+				.then(data => {
+					console.log(data)
+					that.showLoading(false)
+					if (data.code != 200) {
+						alert(data.msg)
+					}
+					if (data.code == 200 && msg) alert(data.msg)
+					if (reload) window.location.reload()
+					if (cb) cb(data)
+				})
+		}
+
+		function HUP(url, fraw, cb = null) {
+			// var fraw = docid(id).files[0]
+			var that = this
+			that.showLoading(true)
+			if (!fraw) return;
+			var fd = new FormData()
+			fd.append('file', fraw)
+			fetch(HTTP_SERVER + url, {
+					method: "POST",
+					body: fd
+				})
+				.then(response => response.json())
+				.then(data => {
+					console.log(data)
+					that.showLoading(false)
+					if (cb) cb(data)
+				})
+			return false
+		}
+	</script>
+	<style>
+		body {
+			background-color: #fdfff5;
+		}
+
+		.text-bold {
+			font-weight: bold;
+		}
+
+		.text-big {
+			font-size: 2rem;
+		}
+	</style>
+</html>
