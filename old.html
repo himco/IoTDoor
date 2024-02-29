@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>IoTDoor</title>
+		<link rel="stylesheet" ref="/pure-min.css"/>
+	</head>
+	<body>
+		<!-- 		<div id="dev_info">
+			Total:<label id="to">-1</label>
+			<br>
+			Used:<label id="usd">-1</label>
+			<br>
+			Left:<label id="lft">-1</label>
+		</div> -->
+		<table id="info">
+			<tr>
+				<th colspan="3">FSinfo</th>
+			</tr>
+			<tr>
+				<th>Total(B)</th>
+				<th>Used(B)</th>
+				<th>Left(B)</th>
+			</tr>
+			<tr>
+				<td><label id="i-to">-1</label></td>
+				<td><label id="i-usd">-1</label></td>
+				<td><label id="i-lft">-1</label></td>
+			</tr>
+			<tr>
+				<td id="i-p"></td>
+				<td colspan="2" align="center">
+					<progress id="i-fp" max="-1" value="-1" />
+				</td>
+			</tr>
+		</table>
+
+		<table id="fs-tb">
+			<tr>
+				<th colspan="2">FileExplorer</th>
+			</tr>
+			<tr>
+				<th>Filename</th>
+				<th>Operation</th>
+			</tr>
+			<!-- 			<tr>
+				<td>Bill</td>
+				<td>
+					<a href="">down</a>
+					<a href="">del</a>
+				</td>
+			</tr> -->
+		</table>
+		<table>
+			<tr>
+				<th colspan="2">FileUploader</th>
+			</tr>
+			<tr>
+				<th><input type="file" id="f-up"></th>
+				<th><input type="button" value="Upload" onclick="HUP('/fs_upload')"></th>
+			</tr>
+		</table>
+		<table>
+			<tr>
+				<th colspan="2">IOController</th>
+			</tr>
+			<tr>
+				<th>IO1</th>
+				<th>
+					<input type="button" onclick="HGET('/io_on?io=1')" value="ON" />
+					<input type="button" onclick="HGET('/io_off?io=1')" value="OFF" />
+				</th>
+			</tr>
+			<tr>
+				<th>IO2</th>
+				<th>
+					<input type="button" onclick="HGET('/io_on?io=2')" value="ON" />
+					<input type="button" onclick="HGET('/io_off?io=2')" value="OFF" />
+				</th>
+			</tr>
+		</table>
+		<table>
+			<tr>
+				<th colspan="2">System</th>
+			</tr>
+			<tr>
+				<th>
+					<input type="button" onclick="HGET('/restart',null,true)" value="Restart" />
+				</th>
+				<th>
+					<input type="button" onclick="HGET('/reset',null,true)" value="Reset" />
+				</th>
+
+			</tr>
+			<!-- 			<tr>
+				<th>
+					<input type="button" onclick="HGET('/wl_scan',null,true)" value="Scan_AP" />
+				</th>
+				<th>
+					
+				</th>
+			</tr> -->
+		</table>
+		<table>
+			<!-- [0]SSID:ChinaNet-YY	CN:1	RSSI:-69dBm	Sec:Encrypt -->
+			<tr>
+				<th colspan="5">WLAN</th>
+				<th> <input type="button" onclick="HGET('/wl_scan',null,true)" value="Scan" /></th>
+			</tr>
+			<tr>
+				<th>ID</th>
+				<th>SSID</th>
+				<th>CN</th>
+				<th>RSSI</th>
+				<th>Sec</th>
+				<th>Select</th>
+			</tr>
+			<tr>
+				<td>1</td>
+				<td>ChinaNet-YY</td>
+				<td>1</td>
+				<td>-69dBm</td>
+				<td>Encrypt</td>
+				<td><input type="button" onclick="" value="Select" /></td>
+			</tr>
+
+		</table>
+		<table>
+			<tr>
+				<th colspan="2">Configuration</th>
+			</tr>
+			<tr>
+				<td>AP-SSID:</td>
+				<td><input id="c-ssid" type="input" /></td>
+			</tr>
+			<tr>
+				<td>AP-PASS:</td>
+				<td><input id="c-pass" type="input" /></td>
+			</tr>
+			<tr>
+				<td>Servo_P1:</td>
+				<td><input id="c-servo1" type="input" /></td>
+			</tr>
+			<tr>
+				<td>Servo_P2:</td>
+				<td><input id="c-servo2" type="input" /></td>
+			</tr>
+			<tr>
+				<td colspan="2"><input type="button" onclick="" value="Save&Restart" /></td>
+			</tr>
+
+
+		</table>
+
+	</body>
+</html>
+<style>
+	table {
+		border-collapse: collapse;
+		width: 100%;
+	}
+
+	th,
+	td {
+		border: 1px solid black;
+		text-align: center;
+	}
+
+	a+a {
+		margin-left: 5px;
+	}
+</style>
+<script>
+	const HTTP_SERVER = window.location.href + "api"
+	// const HTTP_SERVER = "http://192.168.4.1/api"
+	window.onload = function() {
+		fs_info()
+		db_dir()
+		// alert(getElementsByTagName('tr')[0].getElementsByTagName('td')[1]
+		// 	.innerHTML)
+		// alert(oTable.tBodies[0].rows[0].cells[1].innerHTML)
+	}
+
+	function docid(s) {
+		return document.getElementById(s)
+	}
+
+	function docadd(s) {
+		return document.createElement(s)
+	}
+
+	function fs_info() {
+		HGET('/fs_info', res => {
+			docid("i-to").innerText = parseInt(res.data.total / 8)
+			docid("i-usd").innerText = parseInt(res.data.used / 8)
+			docid("i-lft").innerText = parseInt((res.data.total - res.data.used) / 8)
+			docid("i-p").innerText = parseInt(res.data.used / res.data.total * 100) + '%'
+			docid("i-fp").setAttribute('max', parseInt(res.data.total))
+			docid("i-fp").setAttribute('value', parseInt(res.data.used))
+		})
+	}
+
+	function db_dir() {
+		var fstb = docid("fs-tb").getElementsByTagName("tbody")[0]
+
+		HGET('/fs_dir', res => {
+			if (res.data)
+				for (var i = 0; i < res.data.length; i++) {
+					var row = fstb.insertRow()
+					var cell1 = row.insertCell()
+					var cell2 = row.insertCell()
+					cell1.appendChild(document.createTextNode(res.data[i]))
+
+					var op1 = docadd("a")
+					op1.innerText = "down"
+					op1.setAttribute('onclick', "window.open('" + HTTP_SERVER + "/fs_download?file=" + res.data[
+						i] + "')")
+
+					var op2 = docadd("a")
+					op2.innerText = "del"
+					op2.setAttribute('onclick', "HGET('" + '/fs_rm?file=' + res.data[i] + "',false,true)")
+
+					op1.style.textDecorationLine = 'underline'
+					op1.style.color = '#0000ee'
+					op2.style.textDecorationLine = 'underline'
+					op2.style.color = '#0000ee'
+
+					cell2.append(op1, op2)
+				}
+		})
+	}
+
+
+	function HGET(url, cb, msg = false, reload = false) {
+		fetch(HTTP_SERVER + url)
+			.then(response => response.json())
+			.then(data => {
+				console.log(data)
+				if (data.code != 200) {
+					alert(data.msg)
+				}
+				if (data.code == 200 && msg) alert(data.msg)
+				if (reload) window.location.reload()
+				if (cb) cb(data)
+			})
+	}
+
+	function HUP(url, cb = null, id = 'f-up') {
+		var fraw = docid(id).files[0]
+		if (!fraw) return;
+		var fd = new FormData()
+		fd.append('file', fraw)
+		fetch(HTTP_SERVER + url, {
+				method: "POST",
+				body: fd
+			})
+			.then(response => response.json())
+			.then(data => {
+				console.log(data)
+				if (data.code != 200) {
+					alert(data.msg)
+					return
+				}
+				window.location.reload()
+			})
+		return false
+	}
+</script>
