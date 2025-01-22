@@ -2,11 +2,28 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
+#include <ESP8266HTTPClient.h>
+#include <ESP8266httpUpdate.h>
 // #include <EEPROM.h>
 #include <FS.h>
 #include <map>
+#include "html_index.h"
+
+// ============ 烧录注意 ============
+/*
+烧录如果出现Permission相关问题, 需要下载旧版本串口驱动
+开发板: Generic 8266 Module
+Upload speed: 921600
+Flash size: FS:128KB OTA:~438KB
+Erase Flash: Only Sketch
+!!!注意, 修改CONFIG_CONFIG_FILE将会导致所有配置丢失, 包括WIFI连接信息, 在OTA时请三思
+HTML转gz字节码详见html2bytes.py
+*/
+// ============ 烧录注意 ============
 
 // ============ 宏定义内容 ============
+#define SYS_SOFT_VERSION "2.0.2"
+
 #define DEBUG(...) \
   printf(__VA_ARGS__); \
   fflush(stdout);
@@ -19,102 +36,18 @@
 // #define HTML_BACK(srv) srv->send(200, "text/html", "<html><script>window.history.back()</script></html>");
 
 #define DEFAULT_AP_SSID "IOT_DOOR"
-#define CONFIG_CONFIG_FILE "00.db"  //Change this to reconfigurate
-#define CONFIG_WIFI_SSID "Isaacnet_Wifi6"
-#define CONFIG_WIFI_PASS "123456789"
+#define CONFIG_CONFIG_FILE "config.db"  //Change this to reconfigurate, !!!Change will cause Configuration lost via OTA
+#define CONFIG_WIFI_SSID "impossible_ssid"
+#define CONFIG_WIFI_PASS "000000"
 #define CONFIG_WIFI_CODE -1     //Last error code in WiFi connecting, refer to WiFi.status()
 #define CONFIG_WIFI_TIMEOUT 20  //Max spent seconds in WiFi connecting, `0` is forbidden
 #define CONFIG_WIFI_MAXTRY 3    //Max attempt times to connect WiFi, switch to AP mode if exceeded, `0` is forbidden
 #define CONFIG_SERVO_POS_1 0
 #define CONFIG_SERVO_POS_2 50
 #define CONFIG_SERVO_DELAY 5
+#define CONFIG_OTA_SERVER "http://ota.btnext.cn:5010/door/ota/ota.json"
 
-/*<html><head><title>IoT Door</title></head><body><h2>IoT Door</h2><div>No html/css found, select to upload.</div><div>Upload css first,then html,after that reload this page.</div><br/><form action='/api/fs_upload'method='post'enctype='multipart/form-data'><input type='file'name='file'/><input type='submit'value='Upload'/></form></body></html>*/
-#define default_html_len 228
-const uint8_t default_html_gz[] = {
-  0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x55, 0x90, 0x31, 0x6F, 0xC4, 0x20,
-  0x0C, 0x85, 0xFF, 0x8A, 0x37, 0x96, 0xB4, 0x48, 0x9D, 0x09, 0x53, 0x97, 0x2E, 0x9D, 0xDA, 0xF9,
-  0xE4, 0x04, 0xA7, 0x20, 0x01, 0x46, 0x60, 0x4E, 0xBA, 0x7F, 0x5F, 0x42, 0x74, 0x52, 0x3B, 0xE1,
-  0xC7, 0xFB, 0x78, 0xC6, 0x36, 0x5E, 0x52, 0xB4, 0xC6, 0x13, 0x3A, 0x6B, 0x24, 0x48, 0x24, 0xFB,
-  0xC1, 0x5F, 0xF0, 0xCE, 0x5C, 0x8D, 0xBE, 0xB4, 0xD1, 0x97, 0xBB, 0xB1, 0x7B, 0x0C, 0xF2, 0xED,
-  0x0F, 0x30, 0x84, 0x71, 0xE1, 0x6E, 0x3F, 0x19, 0xCE, 0x1C, 0xBD, 0xB7, 0x06, 0x07, 0xF7, 0xEC,
-  0x16, 0x68, 0x14, 0x69, 0x17, 0x10, 0x86, 0x5E, 0x22, 0xA3, 0x7B, 0x35, 0xFA, 0x24, 0x27, 0xFE,
-  0x3D, 0x6F, 0x60, 0xD2, 0xA1, 0x36, 0x59, 0xC4, 0x53, 0x9E, 0x09, 0x0B, 0x1E, 0x42, 0x15, 0xC4,
-  0xA3, 0x40, 0xA5, 0x49, 0x89, 0x0F, 0x0D, 0x0A, 0xFE, 0xD0, 0x33, 0x61, 0xAB, 0xDA, 0x9A, 0x83,
-  0x6B, 0x02, 0xDC, 0x25, 0x70, 0x5E, 0x95, 0xC6, 0x12, 0xF4, 0xD1, 0x6E, 0x57, 0x27, 0x95, 0x48,
-  0x3C, 0xBB, 0x55, 0x15, 0x6E, 0xA2, 0x28, 0xEF, 0xF2, 0x28, 0xB4, 0xAA, 0xD4, 0xA3, 0x84, 0x82,
-  0x55, 0xF4, 0xF9, 0xF6, 0xC5, 0xA1, 0xA0, 0xB2, 0x26, 0xE4, 0xD2, 0xC7, 0x2F, 0x27, 0x71, 0x84,
-  0x48, 0x2A, 0x63, 0x7A, 0x96, 0xFA, 0xBF, 0xDD, 0xFA, 0x96, 0x82, 0xA8, 0x3B, 0xC6, 0x3E, 0xD4,
-  0x35, 0xC3, 0xC9, 0xCC, 0xBC, 0x71, 0x5C, 0xFB, 0xD1, 0x73, 0xA1, 0xBF, 0x39, 0x18, 0x27, 0x21,
-  0x57, 0x01, 0x00, 0x00
-};
 // ============ 宏定义内容 ============
-
-// ============ 固化存储类 ============
-// class Database {
-// public:
-//   struct DBStruct {                                  //8+8*21+8*21+8*2=360 b
-//     byte startcode = CONFIG_STARTCODE;               //To check if EEPROM has been initialized.
-//     byte wifi_ssid[21] = CONFIG_WIFI_SSID;           //WIFI ssid, max length to 20 characteristics
-//     byte wifi_pass[21] = CONFIG_WIFI_PASS;           //WIFI pass, max length to 20 characteristics
-//     byte servo_position[2] = CONFIG_SERVO_POSITION;  //Servo position points
-//   } CONFIGDEFAULT, EEPROMDB;
-
-//   /**
-//   * @brief Constructor, initial data store space, read or default the database
-//   */
-//   Database() {
-//     EEPROM.begin(1024);  //Declare 1024 bits space on EEPROM, no matter if read or write.
-
-//     //Read all configuration and check if EEPROM has been initialized by the `startcode`.
-
-//     memset(&EEPROMDB, 0x00, sizeof(EEPROMDB));  //First clear all default data.
-//     EEPROM.get(0, EEPROMDB);                    //Read configuration from EEPROM.
-
-//     if (EEPROMDB.startcode != CONFIG_STARTCODE) {  //Hasn't initialized, initialize it.
-//       EEPROM.put(0, CONFIGDEFAULT);                //Put the default database into EEPROM.
-//       EEPROM.commit();                             //Make sure to write successfully.
-//       EEPROM.get(0, EEPROMDB);                     //Read configuration again.
-//       DEBUG("[DB]Loading default configuration...\n");
-//     }
-
-//     if (EEPROMDB.startcode == CONFIG_STARTCODE) {
-//       DEBUG("[DB]Load configuration success!\n");
-//       delay(100);
-//     } else {
-//       DEBUG("[DB]Fail to load configuration, the process will be shutdown in 3 seconds later.\n");
-//       delay(3000);
-//       ESP.restart();
-//     }
-//   }
-//   /**
-//   * @brief Save configuration into store space
-//   */
-//   void save() {
-//     //Using `update` neither `write` can save cycle,
-//     //but `put` uses `update` inside to perform the write.
-//     //Refer: https://docs.arduino.cc/learn/built-in-libraries/eeprom/
-//     EEPROM.put(0, EEPROMDB);
-//   }
-//   /**
-//   * @brief Print current configuration to serial
-//   */
-//   void print() {
-//     DEBUGSPLN();
-//     DEBUG("STAT_CODE:0x%0x\n", EEPROMDB.startcode);
-
-//     DEBUG("WIFI_SSID:%s\n", (char*)EEPROMDB.wifi_ssid);
-
-//     DEBUG("WIFI_PASS: %s\n",
-//           strlen((char*)EEPROMDB.wifi_pass) ? (char*)EEPROMDB.wifi_pass : "(无)");
-
-//     DEBUG("SERVO_POSITION:{%d%%,%d%%}\n", EEPROMDB.servo_position[0], EEPROMDB.servo_position[1]);
-
-//     DEBUGSPLN();
-//   }
-// };
-
-// ============ 固化存储类 ============
 
 // ============ 无线网络类 ============
 class WLAN {
@@ -236,9 +169,12 @@ public:
 
   /**
   * @brief Run this function in loop to check current status of WiFi
+  * @update at 2025-01-20 23:54
+  * Try to connect again after a while at AP mode.
   */
   void run(byte max_try_times = 20) {
     static byte try_times = 0;
+    static unsigned long last_ap_time = 0;  // Record last get in AP mode time
 
     int wmt = (int)(*DBJson)["wifi_maxtry"];
     if (wmt != 0) {
@@ -251,18 +187,35 @@ public:
     // DEBUG("Hello1, status: %d, IP: %s\n", WiFi.status(), WiFi.localIP().toString().c_str());
     if (WiFi.status() == WL_CONNECTED) {
       try_times = 0;
+      last_ap_time = millis();
       return;
     }
     // DEBUG("Hello2\n");
+
+    // if in AP mode for a long time, try to reset to reconnect. default 2min.
+    if (WiFi.getMode() == WIFI_AP && millis() - last_ap_time >= 2 * 60 * 1000) {
+      if (WiFi.softAPgetStationNum() == 0) {
+        DEBUG("[WLAN]Long time in AP mode, try to switch to STA mode to reconnect.\n");
+        try_times = 0;
+        last_ap_time = millis();
+        return;
+      }
+      DEBUG("[WLAN]Long time in AP mode, keep on AP because of devices-connected.\n")
+      try_times = 0;
+      last_ap_time = millis();
+      return;
+    }
 
     if (try_times >= max_try_times) {
       if (WiFi.getMode() == WIFI_AP) return;
       DEBUG("\n[WLAN]Exceeded max attempt times, switch to AP mode.\n");
       AP();  //After user saved configuration, the system will restart.
+      last_ap_time = millis();
       return;
     }
 
     //Try to connect...
+    WiFi.mode(WIFI_STA);
     DEBUG("[WLAN]Try to connect, try times: %d/%d\n", try_times + 1, max_try_times);
     int wifi_code = connect(
       DBC((*DBJson)["wifi_ssid"]),
@@ -298,6 +251,88 @@ public:
 };
 // ============ 无线网络类 ============
 
+// ============ 空中升级类 ============
+class OTAme {
+public:
+  JSONVar* DBJson;
+  char* ota_server;
+  WiFiClient client;
+  OTAme(JSONVar* dj) {
+    DBJson = dj;
+    ota_server = DBC((*DBJson)["ota_server"]);
+    DEBUG("[OTA]OTA server: %s\n", ota_server);
+  }
+
+  /**
+  * @brief Run this function in loop to check ota version
+  */
+  void run(unsigned int check_millis) {
+    static unsigned long last_check_time = millis();  // Record last check time
+    if (!(millis() - last_check_time > check_millis)) return;
+    last_check_time = millis();
+
+    // All happen in case of wifi-connected
+    if (WiFi.status() != WL_CONNECTED) return;
+    DEBUG("[OTA]Checking OTA infomation...\n");
+
+    // Get ota.json
+    WiFiClient client;
+    HTTPClient http;
+    String payload;
+
+    // http://ip-api.com/json/
+    http.begin(client, ota_server);
+    // http.begin(client, "http://ip-api.com/json/");
+    int httpResCode = http.GET();
+    if (httpResCode != 200) {
+      DEBUG("[OTA]Fail to connect to OTA server: %d\n", httpResCode);
+      return;
+    }
+
+    payload = http.getString();
+    http.end();
+
+    JSONVar respData = JSON.parse(payload);
+    if (JSON.typeof(respData) == "undefined") {
+      DEBUG("[OTA]Fail to parse json.\n");
+      return;
+    }
+
+    // Get key-value info
+    const char* ota_version = respData["version"];
+    const char* ota_bin_url = respData["ota_bin"];
+
+    DEBUG("[OTA]Local version: %s, remote verison: %s\n", SYS_SOFT_VERSION, ota_version);
+    if (String(SYS_SOFT_VERSION) == String(ota_version)) return;
+
+    DEBUG("[OTA]Try to upgrade at %s...\n", ota_bin_url);
+
+    ESPhttpUpdate.onProgress(update_progress);
+    t_httpUpdate_return ret = ESPhttpUpdate.update(client, String(ota_bin_url));
+
+    switch (ret) {
+      case HTTP_UPDATE_FAILED:
+        DEBUG("[OTA]HTTP_UPDATE_FAILED Error (%d): %s\n", ESPhttpUpdate.getLastError(), ESPhttpUpdate.getLastErrorString().c_str());
+        break;
+      case HTTP_UPDATE_NO_UPDATES:
+        DEBUG("[OTA]HTTP_UPDATE_NO_UPDATES");
+        break;
+      case HTTP_UPDATE_OK:
+        DEBUG("[OTA]HTTP_UPDATE_OK");
+        break;
+      default:
+        DEBUG("[OTA]ESP update error: %d", ret);
+    }
+
+    // Serial.println(payload);
+    // DEBUG("[OTA]Code: %d, res: %s\n", httpResCode, version);
+  }
+  void static update_progress(int cur, int total) {
+    DEBUG("[OTA]HTTP update process at %d of %d bytes...\n", cur, total);
+  }
+};
+// ============ 空中升级类 ============
+
 // ============ 文件系统类 ============
 class FSystem {
 public:
@@ -313,6 +348,7 @@ public:
     (*DBJson)["servo_position"][0] = CONFIG_SERVO_POS_1;
     (*DBJson)["servo_position"][1] = CONFIG_SERVO_POS_2;
     (*DBJson)["servo_delay"] = CONFIG_SERVO_DELAY;
+    (*DBJson)["ota_server"] = CONFIG_OTA_SERVER;
 
     // DEBUG("[DB]%s\n", JSON.stringify(DBJson).c_str());
 
@@ -374,7 +410,16 @@ public:
     }
 
     *DBJson = JSON.parse(str);
-    DEBUG("[FS]Success to read config file.\n");
+    if (JSON.typeof(*DBJson) == "undefined") {
+      DEBUG("[FS]Fail to parse config file json.\n");
+      return false;
+    }
+    DEBUG("[FS]Read config file successfully.\n");
+    for (int i = 0; i < (*DBJson).keys().length(); i++) {
+      String key = (*DBJson).keys()[i];
+      String value = JSON.stringify((*DBJson)[key]);
+      DEBUG("[FS]=> %s: %s\n", key.c_str(), value.c_str());
+    }
 
     ff.close();
     return true;
@@ -529,7 +574,11 @@ private:
     server->send(200, "text/plain", "");
   }
   static void not_found(ESP8266WebServer* server) {
-    JSONRES(server, 404, "api not found");
+    if (server->uri().startsWith("/file/")) {
+      api_file(server);
+    } else {
+      JSONRES(server, 404, "api not found");
+    }
   }
 
   static void JSONRES(ESP8266WebServer* server, int code = 200, String msg = "succ", JSONVar* res = NULL) {
@@ -552,7 +601,10 @@ public:
     srv->enableCORS(true);
     srv->onNotFound(std::bind(&this->not_found, srv));
     srv->on("/", HTTP_GET, std::bind(&this->homepage, srv));
-    srv->on("/style", HTTP_GET, std::bind(&this->style, srv));
+    srv->on("/file", HTTP_GET, std::bind(&this->api_file, srv));
+    srv->on("/api/sys_version", HTTP_GET, std::bind(&this->api_sys_version, srv));
+    srv->on("/api/sys_boottime", HTTP_GET, std::bind(&this->api_sys_boottime, srv));
+    srv->on("/api/sys_proxy", HTTP_GET, std::bind(&this->api_sys_proxy, srv));
     srv->on("/api/fs_dir", HTTP_GET, std::bind(&this->api_fs_dir, srv));
     srv->on("/api/fs_info", HTTP_GET, std::bind(&this->api_fs_info, srv));
     srv->on("/api/fs_rm", HTTP_GET, std::bind(&this->api_fs_rm, srv));
@@ -573,37 +625,9 @@ public:
 
   static void homepage(ESP8266WebServer* server) {
     DEBUG("[WS]User access homepage.\n");
-    File ff = SPIFFS.open("index.html", "r");
-    if (!ff) {
-      // JSONRES(server, 400, "File open failed.");
-      server->sendHeader("Content-Encoding", "gzip");
-      server->send(200, "text/html", default_html_gz, default_html_len);
-      return;
-    }
-    server->send(200, "text/html", ff.readString());
+    server->sendHeader("Content-Encoding", "gzip");
+    server->send(200, "text/html", GZHTML_INDEX, GZHTML_INDEX_LEN);
   }
-
-  static void style(ESP8266WebServer* server) {
-    DEBUG("[WS]User access style.\n");
-    if (!SPIFFS.exists(server->arg("file"))) {
-      JSONRES(server, 400, "File not found.");
-      return;
-    }
-
-    File ff = SPIFFS.open(server->arg("file").c_str(), "r");
-    if (!ff) {
-      JSONRES(server, 400, "File open failed.");
-      return;
-    }
-
-    server->sendHeader("Content-Type", "text/plain");
-    server->sendHeader("Content-Disposition", "attachment; filename=" + server->arg("file"));
-    server->sendHeader("Connection", "close");
-    server->streamFile(ff, "text/css");
-
-    ff.close();
-  }
-
   static void api_cus_opendoor(ESP8266WebServer* server, JSONVar* dj) {
     int sp1 = (*dj)["servo_position"][0];
     int sp2 = (*dj)["servo_position"][1];
@@ -698,6 +722,101 @@ public:
     ESP.restart();
     return;
   }
+
+  static void api_sys_version(ESP8266WebServer* server) {
+    JSONVar version = SYS_SOFT_VERSION;
+    JSONRES(server, &version);
+  }
+
+  static void api_sys_boottime(ESP8266WebServer* server) {
+    JSONVar startMillis = millis();
+    JSONRES(server, &startMillis);
+  }
+
+  static void api_sys_proxy(ESP8266WebServer* server) {
+    WiFiClient client;
+    HTTPClient http;
+    String url = server->arg("url");
+    String method = server->arg("method");
+    String body = server->arg("body");
+    String payload;
+
+    // http://ip-api.com/json/
+    DEBUG("[WS]User access sys_proxy.[%s,%s,%s]\n", url.c_str(), method.c_str(), body.c_str());
+
+    if (url == "") {
+      JSONRES(server, 400, "Missing 'url' parameter");
+      return;
+    }
+
+    if (method == "") {
+      method = "GET";
+    }
+
+    if (!http.begin(client, url)) {
+      JSONRES(server, 500, "Failed to initialize HTTP client");
+      return;
+    }
+
+    int httpResCode = -1;
+    if (method.equalsIgnoreCase("GET")) {
+      httpResCode = http.GET();
+    } else if (method.equalsIgnoreCase("POST")) {
+      httpResCode = http.POST(body);
+    } else if (method.equalsIgnoreCase("PUT")) {
+      httpResCode = http.PUT(body);
+    } else {
+      http.end();
+      JSONRES(server, 400, "Unsupported HTTP method");
+      return;
+    }
+
+    if (httpResCode > 0) {
+      payload = http.getString();
+      server->send(httpResCode, http.header("Content-Type"), payload);
+    } else {
+      JSONRES(server, 500, String("HTTP request failed code: ") + httpResCode + String(", ") + http.errorToString(httpResCode));
+    }
+
+    http.end();
+  }
+
+  static void api_file(ESP8266WebServer* server) {
+    String fileName = server->uri();
+    fileName.remove(0, 6);
+    DEBUG("[WS]User access api_file.[%s]\n", fileName.c_str());
+
+    if (fileName.isEmpty()) {
+      JSONRES(server, 400, "File name is missing.");
+      return;
+    }
+
+    if (!SPIFFS.exists(fileName)) {
+      JSONRES(server, 404, "File not found.");
+      return;
+    }
+
+    File ff = SPIFFS.open(fileName, "r");
+    if (!ff) {
+      JSONRES(server, 500, "File open failed.");
+      return;
+    }
+
+    String contentType = "application/octet-stream";
+    if (fileName.endsWith(".html") || fileName.endsWith(".htm")) contentType = "text/html";
+    else if (fileName.endsWith(".css")) contentType = "text/css";
+    else if (fileName.endsWith(".js")) contentType = "application/javascript";
+    else if (fileName.endsWith(".png")) contentType = "image/png";
+    else if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")) contentType = "image/jpeg";
+    else if (fileName.endsWith(".gif")) contentType = "image/gif";
+    else if (fileName.endsWith(".txt")) contentType = "text/plain";
+
+    server->sendHeader("Connection", "close");
+    server->streamFile(ff, contentType);
+
+    ff.close();  // 关闭文件
+  }
+
 
   static void api_fs_dir(ESP8266WebServer* server) {
     DEBUG("[WS]User access fs_dir.\n");
@@ -864,6 +983,7 @@ public:
 
 // Database* db;
 WLAN* wlan;
+OTAme* otame;
 WebService* websrv;
 FSystem* mfs;
 HardDrive* hd;
@@ -875,6 +995,7 @@ void setup() {
   // db = new Database();        //create class object, @deprecated, new one in FSystem
   mfs = new FSystem(&DatabaseJson);        //create class object
   wlan = new WLAN(&DatabaseJson);          //create class object
+  otame = new OTAme(&DatabaseJson);        //create class object
   websrv = new WebService(&DatabaseJson);  //create class object
   hd = new HardDrive(&DatabaseJson);       //create class object
 
@@ -889,7 +1010,7 @@ void setup() {
   //   wl->AP();
   // }
 
-  DEBUG("Hello, 8266!\n");
+  DEBUG("Hello, btnext!\n");
 }
 
 void loop() {
@@ -903,5 +1024,7 @@ void loop() {
   // DEBUG("%d",a++);
   // if (a >= 100) a = 0;
   wlan->run();
+  // otame->run(10 * 1000);
+  otame->run(60 * 1000);  // 60s检测一次
   websrv->run();
 }
