@@ -10,3 +10,4 @@ A door controller with web based on ESP-01S
  修改CONFIG_CONFIG_FILE将会导致所有配置丢失, 包括WIFI连接信息, 在OTA时请三思  
  HTML转gz字节码详见html2bytes.py  
 
+![示意图](https://github.com/himco/IoTDoor/blob/main/%E7%A4%BA%E6%84%8F%E5%9B%BE.jpg)
